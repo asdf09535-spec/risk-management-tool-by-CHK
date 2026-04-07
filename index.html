@@ -821,17 +821,6 @@ function updateTabCounts(){
 /* ── 차트 ── */
 let currentSymbol='';
 let currentChartInterval='D';
-let tvWidgetInstance=null;
-let tvJsLoaded=false;
-
-// tv.js 를 한 번만 로드
-function loadTvJs(cb){
-  if(tvJsLoaded){ cb(); return; }
-  const s=document.createElement('script');
-  s.src='https://s3.tradingview.com/tv.js';
-  s.onload=()=>{ tvJsLoaded=true; cb(); };
-  document.head.appendChild(s);
-}
 
 function setInterval(iv){
   currentChartInterval=iv;
@@ -848,53 +837,60 @@ function quickLoad(sym){
   loadChart();
 }
 
+function symMap(raw){
+  // TradingView {EXCHANGE}:{SYMBOL} 형식으로 변환
+  const map={
+    'AAPL':'NASDAQ:AAPL','TSLA':'NASDAQ:TSLA','NVDA':'NASDAQ:NVDA',
+    'MSFT':'NASDAQ:MSFT','AMZN':'NASDAQ:AMZN','META':'NASDAQ:META',
+    'GOOGL':'NASDAQ:GOOGL','GOOG':'NASDAQ:GOOG','NFLX':'NASDAQ:NFLX',
+    'SPY':'AMEX:SPY','QQQ':'NASDAQ:QQQ','IWM':'AMEX:IWM',
+    'DIA':'AMEX:DIA','VOO':'AMEX:VOO',
+    'BTC':'BINANCE:BTCUSDT','BTCUSD':'BINANCE:BTCUSDT',
+    'ETH':'BINANCE:ETHUSDT','ETHUSD':'BINANCE:ETHUSDT',
+    'AAPL':'NASDAQ:AAPL'
+  };
+  return map[raw] || raw;
+}
+
 function loadChart(){
   const raw=document.getElementById('chart-symbol').value.trim().toUpperCase();
   if(!raw) return;
 
-  let sym=raw;
-  if(raw==='BTC'||raw==='BTCUSD') sym='BINANCE:BTCUSDT';
-  else if(raw==='ETH'||raw==='ETHUSD') sym='BINANCE:ETHUSDT';
+  const sym=symMap(raw);
   currentSymbol=sym;
 
   // 힌트 숨기기
   const hint=document.getElementById('chart-hint');
   if(hint) hint.style.display='none';
 
-  // 위젯 컨테이너 초기화
+  // s.tradingview.com/widgetembed/ — 실제 작동하는 공개 iframe URL
+  const url='https://s.tradingview.com/widgetembed/'
+    +'?symbol='+encodeURIComponent(sym)
+    +'&interval='+currentChartInterval
+    +'&hidesidetoolbar=0'
+    +'&symboledit=1'
+    +'&saveimage=1'
+    +'&theme=dark'
+    +'&style=1'
+    +'&timezone=America%2FNew_York'
+    +'&withdateranges=1'
+    +'&studies=Volume%40tv-basicstudies'
+    +'&locale=kr'
+    +'&utm_source='+encodeURIComponent(location.hostname)
+    +'&utm_medium=widget'
+    +'&utm_campaign=chart';
+
   const inner=document.getElementById('tv-widget-inner');
-  inner.innerHTML='<div id="tv-widget-container" style="width:100%;height:100%"></div>';
+  inner.innerHTML=`<iframe
+    src="${url}"
+    style="width:100%;height:100%;border:none;display:block"
+    allowtransparency="true"
+    scrolling="no"
+    allowfullscreen
+  ></iframe>`;
 
-  loadTvJs(()=>{
-    if(tvWidgetInstance){
-      try{ tvWidgetInstance.remove(); }catch(e){}
-      tvWidgetInstance=null;
-    }
-    tvWidgetInstance=new TradingView.widget({
-      container_id: 'tv-widget-container',
-      autosize: true,
-      symbol: sym,
-      interval: currentChartInterval,
-      timezone: 'America/New_York',
-      theme: 'dark',
-      style: '1',
-      locale: 'kr',
-      toolbar_bg: '#161920',
-      enable_publishing: false,
-      allow_symbol_change: true,
-      withdateranges: true,
-      hide_side_toolbar: false,
-      studies: ['Volume@tv-basicstudies'],
-      no_referral_id: true,
-      hide_legend: false,
-      save_image: true,
-      show_popup_button: true,
-      popup_width: '1000',
-      popup_height: '650'
-    });
-  });
-
-  const displaySym=raw.replace(/^(BINANCE:|NASDAQ:|NYSE:)/,'').replace('USDT','');
+  // 표시용 심볼 (NASDAQ: 등 prefix 제거)
+  const displaySym=raw.replace(/^(BINANCE:|NASDAQ:|NYSE:|AMEX:)/,'').replace('USDT','');
   fetchPrice(displaySym);
   document.getElementById('chart-sync-badge').style.display='inline-flex';
   document.getElementById('ticker').value=displaySym;
