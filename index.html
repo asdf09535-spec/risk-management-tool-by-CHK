@@ -821,6 +821,17 @@ function updateTabCounts(){
 /* ── 차트 ── */
 let currentSymbol='';
 let currentChartInterval='D';
+let tvWidgetInstance=null;
+let tvJsLoaded=false;
+
+// tv.js 를 한 번만 로드
+function loadTvJs(cb){
+  if(tvJsLoaded){ cb(); return; }
+  const s=document.createElement('script');
+  s.src='https://s3.tradingview.com/tv.js';
+  s.onload=()=>{ tvJsLoaded=true; cb(); };
+  document.head.appendChild(s);
+}
 
 function setInterval(iv){
   currentChartInterval=iv;
@@ -841,68 +852,52 @@ function loadChart(){
   const raw=document.getElementById('chart-symbol').value.trim().toUpperCase();
   if(!raw) return;
 
-  // 심볼 매핑
   let sym=raw;
   if(raw==='BTC'||raw==='BTCUSD') sym='BINANCE:BTCUSDT';
   else if(raw==='ETH'||raw==='ETHUSD') sym='BINANCE:ETHUSDT';
-  else if(!raw.includes(':')) {
-    // 나스닥/NYSE 자동 prefix — TradingView가 자동 매칭하므로 그냥 넘김
-    sym=raw;
-  }
   currentSymbol=sym;
 
-  // hint 숨기기
+  // 힌트 숨기기
   const hint=document.getElementById('chart-hint');
   if(hint) hint.style.display='none';
 
-  // 기존 위젯 제거 후 새 컨테이너 생성
+  // 위젯 컨테이너 초기화
   const inner=document.getElementById('tv-widget-inner');
-  inner.innerHTML='';
+  inner.innerHTML='<div id="tv-widget-container" style="width:100%;height:100%"></div>';
 
-  // 공식 구조: .tradingview-widget-container > .tradingview-widget-container__widget + script
-  const wrapper=document.createElement('div');
-  wrapper.className='tradingview-widget-container';
-  wrapper.style.cssText='width:100%;height:100%';
-
-  const widgetDiv=document.createElement('div');
-  widgetDiv.className='tradingview-widget-container__widget';
-  widgetDiv.style.cssText='width:100%;height:calc(100% - 32px)';
-  wrapper.appendChild(widgetDiv);
-
-  // copyright div (필수)
-  const copy=document.createElement('div');
-  copy.className='tradingview-widget-copyright';
-  copy.innerHTML='<a href="https://www.tradingview.com/" target="_blank" style="color:var(--text3);font-size:11px">TradingView</a>';
-  wrapper.appendChild(copy);
-
-  inner.appendChild(wrapper);
-
-  // script는 wrapper에 appendChild — innerHTML 절대 사용 안 함
-  const script=document.createElement('script');
-  script.type='text/javascript';
-  script.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-  script.async=true;
-  // textContent로 JSON 설정 (innerHTML 대신)
-  script.textContent=JSON.stringify({
-    autosize: true,
-    symbol: sym,
-    interval: currentChartInterval,
-    timezone: 'America/New_York',
-    theme: 'dark',
-    style: '1',
-    locale: 'kr',
-    backgroundColor: '#161920',
-    allow_symbol_change: true,
-    withdateranges: true,
-    hide_side_toolbar: false,
-    studies: ['Volume@tv-basicstudies'],
-    support_host: 'https://www.tradingview.com'
+  loadTvJs(()=>{
+    if(tvWidgetInstance){
+      try{ tvWidgetInstance.remove(); }catch(e){}
+      tvWidgetInstance=null;
+    }
+    tvWidgetInstance=new TradingView.widget({
+      container_id: 'tv-widget-container',
+      autosize: true,
+      symbol: sym,
+      interval: currentChartInterval,
+      timezone: 'America/New_York',
+      theme: 'dark',
+      style: '1',
+      locale: 'kr',
+      toolbar_bg: '#161920',
+      enable_publishing: false,
+      allow_symbol_change: true,
+      withdateranges: true,
+      hide_side_toolbar: false,
+      studies: ['Volume@tv-basicstudies'],
+      no_referral_id: true,
+      hide_legend: false,
+      save_image: true,
+      show_popup_button: true,
+      popup_width: '1000',
+      popup_height: '650'
+    });
   });
-  wrapper.appendChild(script);
 
-  fetchPrice(raw.replace(/^(BINANCE:|NASDAQ:|NYSE:)/,'').replace('USDT','USD'));
+  const displaySym=raw.replace(/^(BINANCE:|NASDAQ:|NYSE:)/,'').replace('USDT','');
+  fetchPrice(displaySym);
   document.getElementById('chart-sync-badge').style.display='inline-flex';
-  document.getElementById('ticker').value=raw.replace(/^(BINANCE:|NASDAQ:|NYSE:)/,'').replace('USDT','');
+  document.getElementById('ticker').value=displaySym;
 }
 
 async function fetchPrice(sym){
