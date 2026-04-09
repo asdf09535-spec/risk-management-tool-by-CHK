@@ -168,6 +168,36 @@ tbody td.neutral{color:var(--text2);font-family:'JetBrains Mono',monospace}
 .chart-hint{text-align:center;padding:3rem 1rem;font-size:13px;color:var(--text3);font-weight:300;line-height:1.8}
 .chart-hint-icon{font-size:32px;margin-bottom:.75rem;opacity:.4}
 .synced-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:20px;background:var(--green-dim);border:0.5px solid rgba(52,212,154,0.3);color:var(--green);margin-left:8px}
+
+/* 지표 패널 */
+.ind-panel{margin-top:.75rem}
+.ind-loading{text-align:center;padding:1.5rem 0;font-size:12px;color:var(--text3);font-weight:300}
+.ind-section-title{font-size:10px;color:var(--text3);letter-spacing:.06em;margin:.875rem 0 .5rem;text-transform:uppercase}
+.ind-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:.5rem}
+.ind-card{background:var(--surface2);border-radius:var(--radius-sm);padding:.625rem .75rem;border:0.5px solid var(--border)}
+.ind-label{font-size:10px;color:var(--text3);margin-bottom:3px;font-weight:300}
+.ind-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500;color:var(--text)}
+.ind-sub{font-size:10px;margin-top:2px;font-weight:300}
+.ind-val.bull{color:var(--green)}
+.ind-val.bear{color:var(--red)}
+.ind-val.neu{color:var(--amber)}
+.signal-bar{display:flex;align-items:center;gap:8px;background:var(--surface2);border-radius:var(--radius-sm);padding:.75rem;margin-bottom:.5rem;border:0.5px solid var(--border)}
+.signal-icon{font-size:18px;flex-shrink:0}
+.signal-text{flex:1}
+.signal-title{font-size:13px;font-weight:500;margin-bottom:2px}
+.signal-title.bull{color:var(--green)}
+.signal-title.bear{color:var(--red)}
+.signal-title.neu{color:var(--amber)}
+.signal-desc{font-size:11px;color:var(--text3);font-weight:300;line-height:1.5}
+.ind-full{background:var(--surface2);border-radius:var(--radius-sm);padding:.625rem .75rem;border:0.5px solid var(--border);margin-bottom:6px}
+.ind-full-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:0.5px solid var(--border)}
+.ind-full-row:last-child{border-bottom:none}
+.ind-full-key{font-size:11px;color:var(--text3);font-weight:300}
+.ind-full-val{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500}
+.gauge-wrap{margin:.5rem 0}
+.gauge-track{height:6px;background:linear-gradient(to right,#f25757 0%,#f5a623 30%,#34d49a 50%,#f5a623 70%,#f25757 100%);border-radius:3px;position:relative;margin-bottom:4px}
+.gauge-needle{position:absolute;top:-3px;width:2px;height:12px;background:var(--text);border-radius:1px;transform:translateX(-50%);transition:left .4s}
+.gauge-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3)}
 @media(max-width:700px){
   .chart-layout{grid-template-columns:1fr}
   .chart-sidebar{order:-1}
@@ -351,7 +381,77 @@ footer{margin-top:3rem;padding-top:1.5rem;border-top:0.5px solid var(--border);f
         </div>
         <button class="use-price-btn" onclick="useCurrentPrice()">↓ 이 가격을 진입가로 사용</button>
       </div>
-      <div class="quick-list">
+
+      <!-- 지표 패널 -->
+      <div class="ind-panel" id="ind-panel" style="display:none">
+        <div class="ind-section-title">종합 신호</div>
+        <div class="signal-bar" id="signal-bar">
+          <div class="signal-icon" id="signal-icon">—</div>
+          <div class="signal-text">
+            <div class="signal-title neu" id="signal-title">분석 중…</div>
+            <div class="signal-desc" id="signal-desc"></div>
+          </div>
+        </div>
+
+        <div class="ind-section-title">RSI (14)</div>
+        <div class="ind-full">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:11px;color:var(--text3)">RSI</span>
+            <span class="ind-full-val" id="rsi-val">—</span>
+          </div>
+          <div class="gauge-wrap">
+            <div class="gauge-track"><div class="gauge-needle" id="rsi-needle" style="left:50%"></div></div>
+            <div class="gauge-labels"><span>과매도 0</span><span>30</span><span>50</span><span>70</span><span>100 과매수</span></div>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px" id="rsi-signal">—</div>
+        </div>
+
+        <div class="ind-section-title">MACD</div>
+        <div class="ind-full">
+          <div class="ind-full-row"><span class="ind-full-key">MACD Line</span><span class="ind-full-val" id="macd-line">—</span></div>
+          <div class="ind-full-row"><span class="ind-full-key">Signal Line</span><span class="ind-full-val" id="macd-signal-line">—</span></div>
+          <div class="ind-full-row"><span class="ind-full-key">히스토그램</span><span class="ind-full-val" id="macd-hist">—</span></div>
+          <div class="ind-full-row"><span class="ind-full-key">상태</span><span class="ind-full-val" id="macd-state">—</span></div>
+        </div>
+
+        <div class="ind-section-title">이동평균선</div>
+        <div class="ind-grid">
+          <div class="ind-card"><div class="ind-label">MA 20</div><div class="ind-val" id="ma20">—</div><div class="ind-sub" id="ma20-sub"></div></div>
+          <div class="ind-card"><div class="ind-label">MA 50</div><div class="ind-val" id="ma50">—</div><div class="ind-sub" id="ma50-sub"></div></div>
+          <div class="ind-card"><div class="ind-label">MA 100</div><div class="ind-val" id="ma100">—</div><div class="ind-sub" id="ma100-sub"></div></div>
+          <div class="ind-card"><div class="ind-label">MA 200</div><div class="ind-val" id="ma200">—</div><div class="ind-sub" id="ma200-sub"></div></div>
+        </div>
+
+        <div class="ind-section-title">볼린저 밴드 (20, 2σ)</div>
+        <div class="ind-full">
+          <div class="ind-full-row"><span class="ind-full-key">상단 밴드</span><span class="ind-full-val" id="bb-upper">—</span></div>
+          <div class="ind-full-row"><span class="ind-full-key">중간선 (MA20)</span><span class="ind-full-val" id="bb-mid">—</span></div>
+          <div class="ind-full-row"><span class="ind-full-key">하단 밴드</span><span class="ind-full-val" id="bb-lower">—</span></div>
+          <div class="ind-full-row"><span class="ind-full-key">밴드폭 %</span><span class="ind-full-val" id="bb-width">—</span></div>
+          <div class="ind-full-row"><span class="ind-full-key">현재가 위치</span><span class="ind-full-val" id="bb-pos">—</span></div>
+        </div>
+
+        <div class="ind-section-title">거래량</div>
+        <div class="ind-grid">
+          <div class="ind-card"><div class="ind-label">현재 거래량</div><div class="ind-val" id="vol-cur">—</div></div>
+          <div class="ind-card"><div class="ind-label">20일 평균</div><div class="ind-val" id="vol-avg">—</div></div>
+          <div class="ind-card" style="grid-column:span 2"><div class="ind-label">거래량 비율</div><div class="ind-val" id="vol-ratio">—</div><div class="ind-sub" id="vol-sub"></div></div>
+        </div>
+
+        <div class="ind-section-title">가격 정보</div>
+        <div class="ind-full">
+          <div class="ind-full-row"><span class="ind-full-key">52주 고가</span><span class="ind-full-val" id="w52-high">—</span></div>
+          <div class="ind-full-row"><span class="ind-full-key">52주 저가</span><span class="ind-full-val" id="w52-low">—</span></div>
+          <div class="ind-full-row"><span class="ind-full-key">52주 위치</span><span class="ind-full-val" id="w52-pos">—</span></div>
+          <div class="ind-full-row"><span class="ind-full-key">ATR (14)</span><span class="ind-full-val" id="atr-val">—</span></div>
+        </div>
+      </div>
+
+      <div id="ind-loading" class="ind-loading" style="display:none">
+        지표 계산 중…
+      </div>
+
+      <div class="quick-list" id="quick-list-panel">
         <div class="quick-title">즐겨찾는 종목</div>
         <div class="quick-chips">
           <button class="quick-chip" onclick="quickLoad('AAPL')">AAPL</button>
@@ -905,11 +1005,25 @@ async function fetchPrice(sym){
   valEl.textContent='불러오는 중…';
   changeEl.textContent='';
   panel.style.display='block';
+
+  // 지표 패널 로딩 표시
+  document.getElementById('ind-panel').style.display='none';
+  document.getElementById('ind-loading').style.display='block';
+
   try{
-    const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=2d`;
+    // 200일치 일봉 데이터 요청 (지표 계산용)
+    const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y`;
     const res=await fetch(url);
     const data=await res.json();
-    const meta=data.chart.result[0].meta;
+    const result=data.chart.result[0];
+    const meta=result.meta;
+    const quotes=result.indicators.quote[0];
+    const closes=quotes.close;
+    const highs=quotes.high;
+    const lows=quotes.low;
+    const volumes=quotes.volume;
+
+    // 현재가
     const price=meta.regularMarketPrice;
     const prev=meta.chartPreviousClose||meta.previousClose;
     const change=price-prev;
@@ -919,13 +1033,238 @@ async function fetchPrice(sym){
     changeEl.className='price-change '+(change>=0?'up':'down');
     window._currentChartPrice=price;
     window._currentChartSym=sym;
+
+    // 지표 계산 및 표시
+    calcIndicators(closes, highs, lows, volumes, price, meta);
+
   }catch(e){
     valEl.textContent='—';
-    changeEl.textContent='가격 조회 실패 (차트는 정상 표시)';
+    changeEl.textContent='조회 실패';
     changeEl.className='price-change';
     window._currentChartPrice=null;
+    document.getElementById('ind-loading').style.display='none';
   }
 }
+
+/* ── 지표 계산 엔진 ── */
+function calcIndicators(closes, highs, lows, volumes, currentPrice, meta){
+  // null 제거
+  const c=closes.filter(v=>v!=null);
+  const h=highs.filter(v=>v!=null);
+  const l=lows.filter(v=>v!=null);
+  const v=volumes.filter(v=>v!=null);
+  const n=c.length;
+  if(n<30){ document.getElementById('ind-loading').style.display='none'; return; }
+
+  // ── RSI(14) ──
+  function calcRSI(data, period=14){
+    let gains=0, losses=0;
+    for(let i=1;i<=period;i++){
+      const d=data[i]-data[i-1];
+      if(d>0) gains+=d; else losses+=Math.abs(d);
+    }
+    let avgGain=gains/period, avgLoss=losses/period;
+    for(let i=period+1;i<data.length;i++){
+      const d=data[i]-data[i-1];
+      avgGain=(avgGain*(period-1)+(d>0?d:0))/period;
+      avgLoss=(avgLoss*(period-1)+(d<0?Math.abs(d):0))/period;
+    }
+    const rs=avgLoss===0?100:avgGain/avgLoss;
+    return 100-(100/(1+rs));
+  }
+  const rsi=calcRSI(c);
+
+  // ── EMA 계산 ──
+  function calcEMA(data, period){
+    const k=2/(period+1);
+    let ema=data.slice(0,period).reduce((a,b)=>a+b,0)/period;
+    for(let i=period;i<data.length;i++) ema=data[i]*k+ema*(1-k);
+    return ema;
+  }
+
+  // ── SMA 계산 ──
+  function calcSMA(data, period){
+    const slice=data.slice(-period);
+    return slice.reduce((a,b)=>a+b,0)/slice.length;
+  }
+
+  const ma20=calcSMA(c,20);
+  const ma50=calcSMA(c,50);
+  const ma100=n>=100?calcSMA(c,100):null;
+  const ma200=n>=200?calcSMA(c,200):null;
+
+  // ── MACD(12,26,9) ──
+  const ema12=calcEMA(c,12);
+  const ema26=calcEMA(c,26);
+  const macdLine=ema12-ema26;
+
+  // Signal: EMA9 of MACD — 근사값
+  function calcMACDArray(data){
+    const k12=2/13, k26=2/27;
+    let e12=data.slice(0,12).reduce((a,b)=>a+b,0)/12;
+    let e26=data.slice(0,26).reduce((a,b)=>a+b,0)/26;
+    const macdArr=[];
+    for(let i=26;i<data.length;i++){
+      e12=data[i]*k12+e12*(1-k12);
+      e26=data[i]*k26+e26*(1-k26);
+      macdArr.push(e12-e26);
+    }
+    return macdArr;
+  }
+  const macdArr=calcMACDArray(c);
+  let signalLine=0;
+  if(macdArr.length>=9){
+    const k9=2/10;
+    signalLine=macdArr.slice(0,9).reduce((a,b)=>a+b,0)/9;
+    for(let i=9;i<macdArr.length;i++) signalLine=macdArr[i]*k9+signalLine*(1-k9);
+  }
+  const hist=macdLine-signalLine;
+
+  // ── 볼린저 밴드(20, 2σ) ──
+  const bbMid=ma20;
+  const slice20=c.slice(-20);
+  const variance=slice20.reduce((s,x)=>s+(x-bbMid)**2,0)/20;
+  const stdDev=Math.sqrt(variance);
+  const bbUpper=bbMid+2*stdDev;
+  const bbLower=bbMid-2*stdDev;
+  const bbWidth=((bbUpper-bbLower)/bbMid)*100;
+  const bbPos=((currentPrice-bbLower)/(bbUpper-bbLower))*100;
+
+  // ── ATR(14) ──
+  function calcATR(highs, lows, closes, period=14){
+    const trs=[];
+    for(let i=1;i<closes.length;i++){
+      const tr=Math.max(highs[i]-lows[i], Math.abs(highs[i]-closes[i-1]), Math.abs(lows[i]-closes[i-1]));
+      trs.push(tr);
+    }
+    return trs.slice(-period).reduce((a,b)=>a+b,0)/period;
+  }
+  const atr=calcATR(h,l,c);
+
+  // ── 거래량 ──
+  const volCur=v[v.length-1];
+  const volAvg=calcSMA(v,20);
+  const volRatio=volCur/volAvg;
+
+  // ── 52주 고/저 ──
+  const w52High=Math.max(...h.slice(-252));
+  const w52Low=Math.min(...l.slice(-252));
+  const w52Pos=((currentPrice-w52Low)/(w52High-w52Low))*100;
+
+  // ── 종합 신호 계산 ──
+  let bullScore=0, bearScore=0;
+  if(rsi<30) bullScore+=2;
+  else if(rsi>70) bearScore+=2;
+  else if(rsi>50) bullScore+=1;
+  else bearScore+=1;
+
+  if(hist>0&&macdLine>signalLine) bullScore+=2;
+  else if(hist<0&&macdLine<signalLine) bearScore+=2;
+
+  if(currentPrice>ma20) bullScore+=1; else bearScore+=1;
+  if(currentPrice>ma50) bullScore+=1; else bearScore+=1;
+  if(ma200&&currentPrice>ma200) bullScore+=1; else if(ma200) bearScore+=1;
+  if(volRatio>1.5) bullScore+=1;
+  if(currentPrice<bbLower) bullScore+=1;
+  else if(currentPrice>bbUpper) bearScore+=1;
+
+  // ── DOM 업데이트 ──
+  const p2=(n)=>n.toFixed(2);
+  const pFmt=(n)=>n>=1000?'$'+n.toLocaleString('en-US',{maximumFractionDigits:0}):'$'+p2(n);
+
+  // RSI
+  set('rsi-val', p2(rsi), rsi<30?'bull':rsi>70?'bear':'neu');
+  document.getElementById('rsi-needle').style.left=(rsi)+'%';
+  set('rsi-signal', rsi<30?'과매도 — 반등 가능성':rsi>70?'과매수 — 조정 주의':rsi>50?'강세 유지':'약세 구간');
+
+  // MACD
+  setPlain('macd-line', p2(macdLine), macdLine>0?'bull':'bear');
+  setPlain('macd-signal-line', p2(signalLine));
+  setPlain('macd-hist', p2(hist), hist>0?'bull':'bear');
+  setPlain('macd-state', hist>0&&macdLine>signalLine?'골든크로스 ↑':hist<0&&macdLine<signalLine?'데드크로스 ↓':'전환 중', hist>0?'bull':'bear');
+
+  // MA
+  setMA('ma20', ma20, currentPrice);
+  setMA('ma50', ma50, currentPrice);
+  if(ma100) setMA('ma100', ma100, currentPrice);
+  else { set('ma100','데이터 부족'); setPlain('ma100-sub','—'); }
+  if(ma200) setMA('ma200', ma200, currentPrice);
+  else { set('ma200','데이터 부족'); setPlain('ma200-sub','—'); }
+
+  // 볼린저
+  setPlain('bb-upper', pFmt(bbUpper));
+  setPlain('bb-mid', pFmt(bbMid));
+  setPlain('bb-lower', pFmt(bbLower));
+  setPlain('bb-width', p2(bbWidth)+'%');
+  setPlain('bb-pos', p2(bbPos)+'%', bbPos>80?'bear':bbPos<20?'bull':'neu');
+
+  // 거래량
+  setPlain('vol-cur', fmtVol(volCur));
+  setPlain('vol-avg', fmtVol(Math.round(volAvg)));
+  setPlain('vol-ratio', p2(volRatio)+'x', volRatio>1.5?'bull':volRatio<0.7?'bear':'neu');
+  setPlain('vol-sub', volRatio>1.5?'평균 대비 거래 급증':volRatio<0.7?'거래량 감소':'평균 수준');
+
+  // 52주
+  setPlain('w52-high', pFmt(w52High));
+  setPlain('w52-low', pFmt(w52Low));
+  setPlain('w52-pos', p2(w52Pos)+'%', w52Pos>80?'bull':w52Pos<20?'bear':'neu');
+  setPlain('atr-val', pFmt(atr));
+
+  // 종합 신호
+  const total=bullScore+bearScore;
+  const bullPct=Math.round(bullScore/total*100);
+  let sigClass, sigIcon, sigTitle, sigDesc;
+  if(bullScore>bearScore+2){
+    sigClass='bull'; sigIcon='📈';
+    sigTitle='매수 신호 ('+bullPct+'%)';
+    sigDesc='RSI·MACD·이평선이 상승 신호. 리스크 관리 후 진입 고려.';
+  } else if(bearScore>bullScore+2){
+    sigClass='bear'; sigIcon='📉';
+    sigTitle='매도 신호 ('+(100-bullPct)+'%)';
+    sigDesc='복수 지표 약세. 진입 자제 또는 숏 포지션 고려.';
+  } else {
+    sigClass='neu'; sigIcon='⚖️';
+    sigTitle='중립 ('+bullPct+'% 강세)';
+    sigDesc='신호 혼재. 추가 확인 후 진입 권장.';
+  }
+  document.getElementById('signal-icon').textContent=sigIcon;
+  const st=document.getElementById('signal-title');
+  st.textContent=sigTitle; st.className='signal-title '+sigClass;
+  document.getElementById('signal-desc').textContent=sigDesc;
+
+  document.getElementById('ind-loading').style.display='none';
+  document.getElementById('ind-panel').style.display='block';
+}
+
+function set(id, val, cls){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.textContent=val;
+  if(cls) el.className='ind-val '+cls;
+}
+function setPlain(id, val, cls){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.textContent=val;
+  if(cls) el.className='ind-full-val '+(cls==='bull'?'bull':cls==='bear'?'bear':cls==='neu'?'neu':'');
+}
+function setMA(id, ma, price){
+  const el=document.getElementById(id);
+  const subEl=document.getElementById(id+'-sub');
+  if(!el) return;
+  el.textContent='$'+ma.toLocaleString('en-US',{maximumFractionDigits:2,minimumFractionDigits:2});
+  const above=price>ma;
+  el.className='ind-val '+(above?'bull':'bear');
+  if(subEl){ subEl.textContent=above?'현재가 위 ↑':'현재가 아래 ↓'; subEl.style.color=above?'var(--green)':'var(--red)'; }
+}
+function fmtVol(n){
+  if(!n) return '—';
+  if(n>=1e9) return (n/1e9).toFixed(1)+'B';
+  if(n>=1e6) return (n/1e6).toFixed(1)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(0)+'K';
+  return n.toString();
+}
+
 
 function useCurrentPrice(){
   const price=window._currentChartPrice;
