@@ -208,14 +208,45 @@ footer{margin-top:3rem;padding-top:1.5rem;border-top:0.5px solid var(--border);f
   .result-grid,.stat-grid{grid-template-columns:1fr 1fr}
   .field-label{width:100px;font-size:12px}
 }
+
+/* ── Firebase 로그인 UI ── */
+.auth-bar{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:.75rem 1.25rem;margin-bottom:1.25rem}
+.auth-user{display:flex;align-items:center;gap:10px}
+.auth-avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;border:1.5px solid var(--border2)}
+.auth-avatar-placeholder{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text3)}
+.auth-name{font-size:13px;color:var(--text);font-weight:500}
+.auth-email{font-size:11px;color:var(--text3);font-weight:300}
+.auth-btn{font-size:12px;padding:6px 14px;border-radius:20px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;border:0.5px solid}
+.auth-btn.login{background:var(--accent-dim);border-color:rgba(79,142,247,0.4);color:var(--accent)}
+.auth-btn.login:hover{background:rgba(79,142,247,0.2)}
+.auth-btn.logout{background:transparent;border-color:var(--border);color:var(--text3)}
+.auth-btn.logout:hover{color:var(--red);border-color:rgba(242,87,87,0.3)}
+.save-indicator{font-size:11px;color:var(--green);display:none;align-items:center;gap:4px}
+.save-indicator.show{display:flex}
 </style>
 </head>
 <body>
 <div class="container">
 
 <div class="narrow">
+
+<!-- Firebase 로그인 바 -->
+<div class="auth-bar" id="auth-bar">
+  <div class="auth-user" id="auth-user-info">
+    <div class="auth-avatar-placeholder" id="auth-avatar-wrap">?</div>
+    <div>
+      <div class="auth-name" id="auth-name">로그인이 필요합니다</div>
+      <div class="auth-email" id="auth-email">로그인하면 매매 내역이 자동 저장됩니다</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="save-indicator" id="save-indicator">✓ 저장됨</div>
+    <button class="auth-btn login" id="auth-btn" onclick="handleAuth()">Google 로그인</button>
+  </div>
+</div>
+
 <header>
-  <div class="logo">RISK MANAGEMENT TOOL v4.0</div>
+  <div class="logo">RISK MANAGEMENT TOOL v5.0</div>
   <h1>포지션 사이징 계산기</h1>
   <p class="subtitle">최악의 손실을 내가 정한다 — 상위 1% 투자자의 방식</p>
 </header>
@@ -603,7 +634,7 @@ footer{margin-top:3rem;padding-top:1.5rem;border-top:0.5px solid var(--border);f
 </footer>
 </div><!-- /container -->
 
-<script>
+<script type="module">
 let currentRisk = 1;
 let stopManual = false;
 let openLogs = [];   // 진행중
@@ -749,6 +780,7 @@ function addLog(){
   openLogs.push({id:Date.now(),date:today(),ticker,entry,stop,target:target||null,qty,invest,actualLoss,rr});
   renderOpen();
   updateTabCounts();
+  if(window._fbSave) window._fbSave();
   // 버튼 피드백
   const btn=document.querySelector('.btn-add');
   btn.textContent='✓ 추가됨';btn.style.color='var(--green)';btn.style.borderColor='rgba(52,212,154,0.4)';btn.style.background='var(--green-dim)';
@@ -757,7 +789,6 @@ function addLog(){
 
 /* ── 매도 완료 처리 ── */
 function sellAt(idx, type){
-  // type: 'target' | 'stop'
   const log=openLogs[idx];
   const sellPrice=type==='target'?log.target:log.stop;
   if(!sellPrice){alert('해당 가격이 설정되어 있지 않습니다.');return;}
@@ -775,14 +806,14 @@ function sellAt(idx, type){
   renderClosed();
   renderStats();
   updateTabCounts();
-  // 매도완료 탭으로 자동 이동
+  if(window._fbSave) window._fbSave();
   switchTab('closed');
 }
 
-function deleteOpen(idx){openLogs.splice(idx,1);renderOpen();updateTabCounts();}
-function deleteClosed(idx){closedLogs.splice(idx,1);renderClosed();renderStats();updateTabCounts();}
-function clearOpen(){if(!openLogs.length)return;if(confirm('진행 중 내역을 모두 삭제할까요?')){openLogs=[];renderOpen();updateTabCounts();}}
-function clearClosed(){if(!closedLogs.length)return;if(confirm('매도 완료 내역을 모두 삭제할까요?')){closedLogs=[];renderClosed();renderStats();updateTabCounts();}}
+function deleteOpen(idx){openLogs.splice(idx,1);renderOpen();updateTabCounts();if(window._fbSave)window._fbSave();}
+function deleteClosed(idx){closedLogs.splice(idx,1);renderClosed();renderStats();updateTabCounts();if(window._fbSave)window._fbSave();}
+function clearOpen(){if(!openLogs.length)return;if(confirm('진행 중 내역을 모두 삭제할까요?')){openLogs=[];renderOpen();updateTabCounts();if(window._fbSave)window._fbSave();}}
+function clearClosed(){if(!closedLogs.length)return;if(confirm('매도 완료 내역을 모두 삭제할까요?')){closedLogs=[];renderClosed();renderStats();updateTabCounts();if(window._fbSave)window._fbSave();}}
 
 /* ── 렌더 진행중 ── */
 function renderOpen(){
@@ -1284,6 +1315,108 @@ function useCurrentPrice(){
 }
 
 updateMaxLoss();
-</script>
+
+/* ── window에 전역 등록 (type=module 필수) ── */
+Object.assign(window,{
+  setSeed,setRisk,updateMaxLoss,autoStop,onStopManual,calc,
+  addLog,sellAt,deleteOpen,deleteClosed,clearOpen,clearClosed,
+  switchTab,loadChart,setInterval,quickLoad,useCurrentPrice
+});
+   FIREBASE — 인증 + Firestore 저장
+   ══════════════════════════════════════ */
+(async()=>{
+  const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+  const { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+    = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+  const { getFirestore, doc, setDoc, getDoc }
+    = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBFT0S_ctb65f2ZQzRMGxtjdAavl4VHlNw",
+    authDomain: "risk-calculator-8c285.firebaseapp.com",
+    projectId: "risk-calculator-8c285",
+    storageBucket: "risk-calculator-8c285.firebasestorage.app",
+    messagingSenderId: "324202904912",
+    appId: "1:324202904912:web:99a7b6b502366df55b8055"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const auth  = getAuth(fbApp);
+  const db    = getFirestore(fbApp);
+  let currentUser = null;
+
+  /* 로그인/로그아웃 버튼 */
+  window.handleAuth = async function(){
+    if(currentUser){
+      await signOut(auth);
+    } else {
+      try{ await signInWithPopup(auth, new GoogleAuthProvider()); }
+      catch(e){ console.error('로그인 실패:', e.message); }
+    }
+  };
+
+  /* 저장 표시 */
+  function showSaved(){
+    const el=document.getElementById('save-indicator');
+    el.classList.add('show');
+    setTimeout(()=>el.classList.remove('show'),2000);
+  }
+
+  /* Firestore 저장 */
+  window._fbSave = async function(){
+    if(!currentUser) return;
+    try{
+      await setDoc(doc(db,'users',currentUser.uid,'data','logs'),{
+        openLogs:   JSON.stringify(openLogs),
+        closedLogs: JSON.stringify(closedLogs),
+        updatedAt:  new Date().toISOString()
+      });
+      showSaved();
+    }catch(e){ console.error('저장 실패:',e); }
+  };
+
+  /* Firestore 불러오기 */
+  async function loadData(){
+    try{
+      const snap = await getDoc(doc(db,'users',currentUser.uid,'data','logs'));
+      if(snap.exists()){
+        const d = snap.data();
+        openLogs   = JSON.parse(d.openLogs   || '[]');
+        closedLogs = JSON.parse(d.closedLogs || '[]');
+      } else {
+        openLogs=[]; closedLogs=[];
+      }
+    }catch(e){ openLogs=[]; closedLogs=[]; }
+    renderOpen(); renderClosed(); renderStats(); updateTabCounts();
+  }
+
+  /* 인증 상태 감지 */
+  onAuthStateChanged(auth, async (user)=>{
+    currentUser = user;
+    const btn   = document.getElementById('auth-btn');
+    const name  = document.getElementById('auth-name');
+    const email = document.getElementById('auth-email');
+    const wrap  = document.getElementById('auth-avatar-wrap');
+    if(user){
+      name.textContent  = user.displayName || '사용자';
+      email.textContent = user.email;
+      btn.textContent   = '로그아웃';
+      btn.className     = 'auth-btn logout';
+      wrap.innerHTML    = user.photoURL
+        ? `<img src="${user.photoURL}" class="auth-avatar">`
+        : (user.displayName||'U')[0].toUpperCase();
+      await loadData();
+    } else {
+      name.textContent  = '로그인이 필요합니다';
+      email.textContent = '로그인하면 매매 내역이 자동 저장됩니다';
+      btn.textContent   = 'Google 로그인';
+      btn.className     = 'auth-btn login';
+      wrap.innerHTML    = '?';
+      openLogs=[]; closedLogs=[];
+      renderOpen(); renderClosed(); renderStats(); updateTabCounts();
+    }
+  });
+})();
+
 </body>
 </html>
