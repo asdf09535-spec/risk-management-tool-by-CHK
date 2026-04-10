@@ -272,10 +272,12 @@ footer{margin-top:3rem;padding-top:1.5rem;border-top:0.5px solid var(--border);f
   <div class="field" style="margin-bottom:.5rem">
     <span class="field-label">리스크 비율</span>
     <div class="chip-row" style="margin:0;flex:1">
-      <button class="chip active-blue" id="risk-btn-1" onclick="setRisk(1,this)">1% 보수적</button>
-      <button class="chip" id="risk-btn-2" onclick="setRisk(2,this)">2% 표준</button>
-      <button class="chip" id="risk-btn-3" onclick="setRisk(3,this)">3% 공격적</button>
-    </div>
+        <button class="chip active-blue" id="risk-btn-1" onclick="setRisk(1,this)">1%</button>
+        <button class="chip" id="risk-btn-2" onclick="setRisk(2,this)">2%</button>
+        <button class="chip" id="risk-btn-3" onclick="setRisk(3,this)">3%</button>
+        <button class="chip" id="risk-btn-4" onclick="setRisk(4,this)">4%</button>
+        <button class="chip" id="risk-btn-5" onclick="setRisk(5,this)">5%</button>
+      </div>
   </div>
   <div class="field" style="margin-top:.75rem">
     <span class="field-label">고정 손실액</span>
@@ -382,13 +384,13 @@ footer{margin-top:3rem;padding-top:1.5rem;border-top:0.5px solid var(--border);f
   </div>
   <div class="interval-row">
     <span style="font-size:11px;color:var(--text3);line-height:2.2;margin-right:4px">기간</span>
-    <button class="iv-btn" onclick="setInterval('1')">1분</button>
-    <button class="iv-btn" onclick="setInterval('5')">5분</button>
-    <button class="iv-btn" onclick="setInterval('15')">15분</button>
-    <button class="iv-btn" onclick="setInterval('60')">1시간</button>
-    <button class="iv-btn active" onclick="setInterval('D')">일봉</button>
-    <button class="iv-btn" onclick="setInterval('W')">주봉</button>
-    <button class="iv-btn" onclick="setInterval('M')">월봉</button>
+    <button class="iv-btn" onclick="setChartInterval('1')">1분</button>
+    <button class="iv-btn" onclick="setChartInterval('5')">5분</button>
+    <button class="iv-btn" onclick="setChartInterval('15')">15분</button>
+    <button class="iv-btn" onclick="setChartInterval('60')">1시간</button>
+    <button class="iv-btn active" onclick="setChartInterval('D')">일봉</button>
+    <button class="iv-btn" onclick="setChartInterval('W')">주봉</button>
+    <button class="iv-btn" onclick="setChartInterval('M')">월봉</button>
   </div>
   <div class="chart-layout">
     <div class="chart-main">
@@ -674,8 +676,12 @@ function setSeed(v){
 }
 function setRisk(v,el){
   currentRisk=v;
-  ['risk-btn-1','risk-btn-2','risk-btn-3'].forEach(id=>document.getElementById(id).className='chip');
-  el.className='chip '+(v===1?'active-blue':v===2?'active-amber':'active-red');
+  ['risk-btn-1','risk-btn-2','risk-btn-3','risk-btn-4','risk-btn-5'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(btn) btn.className='chip';
+  });
+  const cls=v<=1?'active-blue':v<=2?'active-blue':v<=3?'active-amber':'active-red';
+  el.className='chip '+cls;
   updateMaxLoss();
   stopManual=false;
   autoStop();
@@ -956,7 +962,7 @@ let currentChartInterval='D';
 function setInterval(iv){
   currentChartInterval=iv;
   document.querySelectorAll('.iv-btn').forEach(b=>{
-    const m=b.getAttribute('onclick').match(/setInterval\('(.+)'\)/);
+    const m=b.getAttribute('onclick').match(/setChartInterval\('(.+)'\)/);
     if(m) b.className='iv-btn'+(m[1]===iv?' active':'');
   });
   if(currentSymbol) loadChart();
@@ -1314,14 +1320,16 @@ function useCurrentPrice(){
   setTimeout(()=>{btn.textContent='↓ 이 가격을 진입가로 사용';btn.style.background='';btn.style.borderColor='';btn.style.color='';},2000);
 }
 
-updateMaxLoss();
-
 /* ── window에 전역 등록 (type=module 필수) ── */
 Object.assign(window,{
   setSeed,setRisk,updateMaxLoss,autoStop,onStopManual,calc,
   addLog,sellAt,deleteOpen,deleteClosed,clearOpen,clearClosed,
-  switchTab,loadChart,setInterval,quickLoad,useCurrentPrice
+  switchTab,loadChart,setChartInterval:setInterval,quickLoad,useCurrentPrice
 });
+
+updateMaxLoss();
+
+/* ══════════════════════════════════════
    FIREBASE — 인증 + Firestore 저장
    ══════════════════════════════════════ */
 (async()=>{
