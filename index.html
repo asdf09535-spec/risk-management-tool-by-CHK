@@ -224,6 +224,10 @@ footer{margin-top:3rem;padding-top:1.5rem;border-top:0.5px solid var(--border);f
 .save-indicator{font-size:11px;color:var(--green);display:none;align-items:center;gap:4px}
 .save-indicator.show{display:flex}
 </style>
+<!-- Firebase compat -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <div class="container">
@@ -636,7 +640,7 @@ footer{margin-top:3rem;padding-top:1.5rem;border-top:0.5px solid var(--border);f
 </footer>
 </div><!-- /container -->
 
-<script type="module">
+<script>
 let currentRisk = 1;
 let stopManual = false;
 let openLogs = [];   // 진행중
@@ -1320,25 +1324,12 @@ function useCurrentPrice(){
   setTimeout(()=>{btn.textContent='↓ 이 가격을 진입가로 사용';btn.style.background='';btn.style.borderColor='';btn.style.color='';},2000);
 }
 
-/* ── window에 전역 등록 (type=module 필수) ── */
-Object.assign(window,{
-  setSeed,setRisk,updateMaxLoss,autoStop,onStopManual,calc,
-  addLog,sellAt,deleteOpen,deleteClosed,clearOpen,clearClosed,
-  switchTab,loadChart,setChartInterval:setInterval,quickLoad,useCurrentPrice
-});
-
+/* ══════════════════════════════════════
+   FIREBASE — compat 방식 (안정적)
+   ══════════════════════════════════════ */
 updateMaxLoss();
 
-/* ══════════════════════════════════════
-   FIREBASE — 인증 + Firestore 저장
-   ══════════════════════════════════════ */
-(async()=>{
-  const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-  const { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
-    = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
-  const { getFirestore, doc, setDoc, getDoc }
-    = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-
+function initFirebase(){
   const firebaseConfig = {
     apiKey: "AIzaSyBFT0S_ctb65f2ZQzRMGxtjdAavl4VHlNw",
     authDomain: "risk-calculator-8c285.firebaseapp.com",
@@ -1348,46 +1339,36 @@ updateMaxLoss();
     appId: "1:324202904912:web:99a7b6b502366df55b8055"
   };
 
-  const fbApp = initializeApp(firebaseConfig);
-  const auth  = getAuth(fbApp);
-  const db    = getFirestore(fbApp);
+  if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
   let currentUser = null;
 
-  /* 로그인/로그아웃 버튼 */
-  window.handleAuth = async function(){
-    if(currentUser){
-      await signOut(auth);
-    } else {
-      try{ await signInWithPopup(auth, new GoogleAuthProvider()); }
-      catch(e){ console.error('로그인 실패:', e.message); }
-    }
-  };
-
-  /* 저장 표시 */
   function showSaved(){
     const el=document.getElementById('save-indicator');
     el.classList.add('show');
     setTimeout(()=>el.classList.remove('show'),2000);
   }
 
-  /* Firestore 저장 */
   window._fbSave = async function(){
     if(!currentUser) return;
     try{
-      await setDoc(doc(db,'users',currentUser.uid,'data','logs'),{
-        openLogs:   JSON.stringify(openLogs),
-        closedLogs: JSON.stringify(closedLogs),
-        updatedAt:  new Date().toISOString()
-      });
+      await db.collection('users').doc(currentUser.uid)
+        .collection('data').doc('logs')
+        .set({
+          openLogs:   JSON.stringify(openLogs),
+          closedLogs: JSON.stringify(closedLogs),
+          updatedAt:  new Date().toISOString()
+        });
       showSaved();
     }catch(e){ console.error('저장 실패:',e); }
   };
 
-  /* Firestore 불러오기 */
   async function loadData(){
     try{
-      const snap = await getDoc(doc(db,'users',currentUser.uid,'data','logs'));
-      if(snap.exists()){
+      const snap = await db.collection('users').doc(currentUser.uid)
+        .collection('data').doc('logs').get();
+      if(snap.exists){
         const d = snap.data();
         openLogs   = JSON.parse(d.openLogs   || '[]');
         closedLogs = JSON.parse(d.closedLogs || '[]');
@@ -1398,33 +1379,52 @@ updateMaxLoss();
     renderOpen(); renderClosed(); renderStats(); updateTabCounts();
   }
 
-  /* 인증 상태 감지 */
-  onAuthStateChanged(auth, async (user)=>{
+  window.handleAuth = async function(){
+    if(currentUser){
+      await auth.signOut();
+    } else {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      try{ await auth.signInWithPopup(provider); }
+      catch(e){ console.error('로그인 실패:', e.message); }
+    }
+  };
+
+  auth.onAuthStateChanged(async function(user){
     currentUser = user;
-    const btn   = document.getElementById('auth-btn');
-    const name  = document.getElementById('auth-name');
-    const email = document.getElementById('auth-email');
-    const wrap  = document.getElementById('auth-avatar-wrap');
+    const btn  = document.getElementById('auth-btn');
+    const name = document.getElementById('auth-name');
+    const eml  = document.getElementById('auth-email');
+    const wrap = document.getElementById('auth-avatar-wrap');
     if(user){
-      name.textContent  = user.displayName || '사용자';
-      email.textContent = user.email;
-      btn.textContent   = '로그아웃';
-      btn.className     = 'auth-btn logout';
-      wrap.innerHTML    = user.photoURL
-        ? `<img src="${user.photoURL}" class="auth-avatar">`
+      name.textContent = user.displayName || '사용자';
+      eml.textContent  = user.email;
+      btn.textContent  = '로그아웃';
+      btn.className    = 'auth-btn logout';
+      wrap.innerHTML   = user.photoURL
+        ? '<img src="'+user.photoURL+'" class="auth-avatar">'
         : (user.displayName||'U')[0].toUpperCase();
       await loadData();
     } else {
-      name.textContent  = '로그인이 필요합니다';
-      email.textContent = '로그인하면 매매 내역이 자동 저장됩니다';
-      btn.textContent   = 'Google 로그인';
-      btn.className     = 'auth-btn login';
-      wrap.innerHTML    = '?';
+      name.textContent = '로그인이 필요합니다';
+      eml.textContent  = '로그인하면 매매 내역이 자동 저장됩니다';
+      btn.textContent  = 'Google 로그인';
+      btn.className    = 'auth-btn login';
+      wrap.innerHTML   = '?';
       openLogs=[]; closedLogs=[];
       renderOpen(); renderClosed(); renderStats(); updateTabCounts();
     }
   });
-})();
+}
+
+/* Firebase SDK 로드 완료 후 초기화 */
+window.addEventListener('load', function(){
+  if(typeof firebase !== 'undefined'){
+    initFirebase();
+  } else {
+    console.error('Firebase SDK 로드 실패');
+  }
+});
+
 
 </body>
 </html>
