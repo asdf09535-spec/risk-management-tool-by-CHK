@@ -963,7 +963,7 @@ function updateTabCounts(){
 let currentSymbol='';
 let currentChartInterval='D';
 
-function setInterval(iv){
+function setChartInterval(iv){
   currentChartInterval=iv;
   document.querySelectorAll('.iv-btn').forEach(b=>{
     const m=b.getAttribute('onclick').match(/setChartInterval\('(.+)'\)/);
@@ -1424,7 +1424,7 @@ window.addEventListener('load', function(){
     console.error('Firebase SDK 로드 실패');
   }
 });
-
+</script>
 
 </body>
 </html>
