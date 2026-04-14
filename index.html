@@ -1016,6 +1016,29 @@ function loadChart(){
   document.getElementById('ticker').value=displaySym;
 }
 
+/* ── CORS 우회 래퍼 ─────────────────────
+   Yahoo Finance는 브라우저 직접 호출 시 CORS 차단.
+   corsproxy.io → allorigins → 직접호출 순서로 시도.
+──────────────────────────────────────── */
+async function yahooFetch(path){
+  const base='https://query1.finance.yahoo.com';
+  const full=base+path;
+  const proxies=[
+    `https://corsproxy.io/?${encodeURIComponent(full)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(full)}`,
+    full
+  ];
+  for(const url of proxies){
+    try{
+      const r=await fetch(url,{signal:AbortSignal.timeout(7000)});
+      if(!r.ok) continue;
+      const d=await r.json();
+      if(d?.chart?.result?.[0]) return d;
+    }catch(e){ continue; }
+  }
+  return null;
+}
+
 async function fetchPrice(sym){
   const panel=document.getElementById('price-panel');
   const valEl=document.getElementById('price-val');
@@ -1028,9 +1051,8 @@ async function fetchPrice(sym){
   document.getElementById('ind-panel').style.display='none';
   document.getElementById('ind-loading').style.display='block';
   try{
-    const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y`;
-    const res=await fetch(url);
-    const data=await res.json();
+    const data=await yahooFetch(`/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y`);
+    if(!data) throw new Error('no data');
     const result=data.chart.result[0];
     const meta=result.meta;
     const quotes=result.indicators.quote[0];
@@ -1049,9 +1071,9 @@ async function fetchPrice(sym){
     window._currentChartSym=sym;
     calcIndicators(closes,highs,lows,volumes,price,meta);
   }catch(e){
-    valEl.textContent='—';
-    changeEl.textContent='조회 실패';
-    changeEl.className='price-change';
+    valEl.textContent='조회 실패';
+    changeEl.textContent='지표 불러오기 실패';
+    changeEl.className='price-change down';
     window._currentChartPrice=null;
     document.getElementById('ind-loading').style.display='none';
   }
@@ -1425,8 +1447,11 @@ async function fetchMacroIndicators(){
 
   /* Fear & Greed Index — CNN Alternative.me API */
   try{
-    const r=await fetch('https://api.alternative.me/fng/?limit=1');
-    const d=await r.json();
+    let fngData=null;
+    try{const r=await fetch('https://api.alternative.me/fng/?limit=1',{signal:AbortSignal.timeout(6000)});fngData=await r.json();}catch(e2){
+      try{const r2=await fetch(`https://corsproxy.io/?${encodeURIComponent('https://api.alternative.me/fng/?limit=1')}`,{signal:AbortSignal.timeout(6000)});fngData=await r2.json();}catch(e3){}
+    }
+    const d=fngData;
     const val=parseInt(d.data[0].value);
     const label=d.data[0].value_classification;
     let score,signal;
@@ -1453,8 +1478,8 @@ async function fetchMacroIndicators(){
   ];
   for(const mf of macroFetches){
     try{
-      const r=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(mf.sym)}?interval=1d&range=5d`);
-      const d=await r.json();
+      const d=await yahooFetch(`/v8/finance/chart/${encodeURIComponent(mf.sym)}?interval=1d&range=5d`);
+      if(!d) throw new Error('no data');
       const meta=d.chart.result[0].meta;
       const price=meta.regularMarketPrice;
       const prev=meta.chartPreviousClose||meta.previousClose;
@@ -1490,8 +1515,8 @@ async function fetchMacroIndicators(){
   /* Forward P/E — S&P500 PER 근사 (정적 참고값 + 실시간 확인 안내) */
   // Yahoo Finance에서 직접 제공하지 않으므로 현재 지수 레벨로 과열 여부 추정
   try{
-    const r=await fetch('https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d&range=5d');
-    const d=await r.json();
+    const d=await yahooFetch('/v8/finance/chart/%5EGSPC?interval=1d&range=5d');
+    if(!d) throw new Error('no data');
     const spxPrice=d.chart.result[0].meta.regularMarketPrice;
     // S&P500 Forward P/E 참고값 (2025년 기준 약 20~22x가 과열 기준)
     // 지수 레벨로 대략적 추정: 5800+ = 고평가, 4800- = 저평가
